@@ -1,0 +1,13 @@
+# Composer (package/library)
+/vendor/
+/composer.lock
+
+# Common local files
+/.env
+/.DS_Store
+/.idea/
+/.vscode/
+composer.phar
+.phpunit.result.cache
+coverage/
+

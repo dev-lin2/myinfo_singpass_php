@@ -1,0 +1,7 @@
+<svg width="180" height="44" viewBox="0 0 180 44" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sign in with Singpass">
+  <rect width="180" height="44" rx="6" fill="#333"/>
+  <text x="90" y="28" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#fff">
+    Sign in with Singpass
+  </text>
+</svg>
+
