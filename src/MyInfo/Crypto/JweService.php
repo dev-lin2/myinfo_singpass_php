@@ -2,14 +2,15 @@
 
 namespace MyInfo\Crypto;
 
-use Jose\Component\Core\JWK;
+use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Encryption\JWE;
 use Jose\Component\Encryption\JWEDecrypter;
 use Jose\Component\Encryption\JWELoader;
 use Jose\Component\Encryption\Algorithm\KeyEncryption\RSAOAEP;
+use Jose\Component\Encryption\Algorithm\KeyEncryption\RSAOAEP256;
 use Jose\Component\Encryption\Algorithm\ContentEncryption\A256GCM;
+use Jose\Component\Encryption\Compression\CompressionMethodManager;
 use Jose\Component\KeyManagement\JWKFactory;
-use Jose\Component\Checker\HeaderCheckerManager;
 use Jose\Component\Encryption\Serializer\JWESerializerManager;
 use Jose\Component\Encryption\Serializer\CompactSerializer as JweCompactSerializer;
 use MyInfo\Exceptions\CryptoException;
@@ -26,10 +27,12 @@ class JweService
 
     public function __construct()
     {
-        $this->decrypter = new JWEDecrypter([new RSAOAEP()], [new A256GCM()], []);
+        $keyEncryptionManager = new AlgorithmManager([new RSAOAEP(), new RSAOAEP256()]);
+        $contentEncryptionManager = new AlgorithmManager([new A256GCM()]);
+        $compressionManager = new CompressionMethodManager([]);
+        $this->decrypter = new JWEDecrypter($keyEncryptionManager, $contentEncryptionManager, $compressionManager);
         $serializerManager = new JWESerializerManager([new JweCompactSerializer()]);
-        $headerChecker = new HeaderCheckerManager([]);
-        $this->loader = new JWELoader($serializerManager, $this->decrypter, $headerChecker);
+        $this->loader = new JWELoader($serializerManager, $this->decrypter, null);
     }
 
     /**
@@ -52,7 +55,7 @@ class JweService
             }
 
             $headers = $loaded->getSharedProtectedHeader();
-            if (($headers['alg'] ?? null) !== 'RSA-OAEP') {
+            if (!in_array(($headers['alg'] ?? null), ['RSA-OAEP', 'RSA-OAEP-256'], true)) {
                 throw new CryptoException('Unexpected JWE alg: ' . ($headers['alg'] ?? 'n/a'));
             }
             if (($headers['enc'] ?? null) !== 'A256GCM') {

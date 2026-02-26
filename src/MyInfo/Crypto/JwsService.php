@@ -2,15 +2,13 @@
 
 namespace MyInfo\Crypto;
 
-use Jose\Component\Core\JWK;
+use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Signature\JWSVerifier;
 use Jose\Component\Signature\JWSLoader;
 use Jose\Component\Signature\Algorithm\RS256;
 use Jose\Component\KeyManagement\JWKFactory;
 use Jose\Component\Signature\Serializer\JWSSerializerManager;
 use Jose\Component\Signature\Serializer\CompactSerializer as JwsCompactSerializer;
-use Jose\Component\Checker\HeaderCheckerManager;
-use Jose\Component\Checker\AlgorithmChecker;
 use MyInfo\Exceptions\CryptoException;
 
 /**
@@ -25,10 +23,9 @@ class JwsService
 
     public function __construct()
     {
-        $this->verifier = new JWSVerifier([new RS256()]);
+        $this->verifier = new JWSVerifier(new AlgorithmManager([new RS256()]));
         $serializerManager = new JWSSerializerManager([new JwsCompactSerializer()]);
-        $headerChecker = new HeaderCheckerManager([new AlgorithmChecker(['RS256'])]);
-        $this->loader = new JWSLoader($serializerManager, $this->verifier, $headerChecker);
+        $this->loader = new JWSLoader($serializerManager, $this->verifier, null);
     }
 
     /**

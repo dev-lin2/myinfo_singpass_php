@@ -16,7 +16,8 @@
   },
   "autoload": {
     "psr-4": {
-      "MyInfo\\": "src/"
+      "MyInfo\\": "src/MyInfo/",
+      "MyInfo\\Laravel\\": "src/Laravel/"
     }
   },
   "extra": {

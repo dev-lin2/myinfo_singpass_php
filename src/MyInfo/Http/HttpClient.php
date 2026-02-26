@@ -73,9 +73,10 @@ class HttpClient
         $body = (string) $response->getBody();
         $msg = sprintf('%s %s failed with status %d', $method, $url, $status);
         if ($body !== '') {
-            $msg .= ' — ' . substr($body, 0, 500);
+            $msg .= ' - ' . substr($body, 0, 500);
         }
         throw new HttpException($msg, $response);
     }
 }
+
 

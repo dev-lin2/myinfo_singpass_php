@@ -37,11 +37,19 @@ class MyInfoClient
      */
     public function buildAuthorizeUrl(array $overrides = []): string
     {
+        $overrideAttributes = $overrides['attributes'] ?? $this->config->getAttributes();
+        if (is_string($overrideAttributes)) {
+            $overrideAttributes = array_values(array_filter(array_map('trim', explode(',', $overrideAttributes))));
+        }
+        if (!is_array($overrideAttributes)) {
+            $overrideAttributes = $this->config->getAttributes();
+        }
+
         $params = [
             'client_id' => $this->config->getClientId(),
-            'attributes' => implode(',', $overrides['attributes'] ?? $this->config->getAttributes()),
+            'attributes' => implode(',', $overrideAttributes),
             'purpose' => $overrides['purpose'] ?? $this->config->getPurpose(),
-            'redirect_uri' => $this->config->getRedirectUri(),
+            'redirect_uri' => $overrides['redirect_uri'] ?? $this->config->getRedirectUri(),
             'state' => $overrides['state'] ?? bin2hex(random_bytes(8)),
             'nonce' => $overrides['nonce'] ?? bin2hex(random_bytes(8)),
             'response_type' => 'code',
@@ -54,12 +62,12 @@ class MyInfoClient
      *
      * @throws OAuthException
      */
-    public function exchangeToken(string $code): AccessToken
+    public function exchangeToken(string $code, ?string $redirectUri = null): AccessToken
     {
         $res = $this->http->postForm($this->config->getTokenUrl(), [
             'grant_type' => 'authorization_code',
             'code' => $code,
-            'redirect_uri' => $this->config->getRedirectUri(),
+            'redirect_uri' => $redirectUri ?: $this->config->getRedirectUri(),
             'client_id' => $this->config->getClientId(),
             'client_secret' => $this->config->getClientSecret(),
         ]);
@@ -105,7 +113,10 @@ class MyInfoClient
         $jwe = is_array($body) && isset($body['data']) ? (string) $body['data'] : null;
         if (!$jwe) {
             // some environments may return the compact string directly
-            $jwe = is_string($res->getBody()) ? (string) $res->getBody() : null;
+            $jwe = trim((string) $res->getBody());
+            if ($jwe === '') {
+                $jwe = null;
+            }
         }
         if (!$jwe) {
             throw new \RuntimeException('Unexpected person API response');

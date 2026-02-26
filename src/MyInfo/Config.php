@@ -78,15 +78,27 @@ class Config
     public static function fromEnv(): self
     {
         $env = getenv('MYINFO_ENV') ?: 'sandbox';
-        $clientId = (string) getenv('MYINFO_CLIENT_ID');
-        $clientSecret = (string) getenv('MYINFO_CLIENT_SECRET');
-        $redirectUri = (string) getenv('MYINFO_REDIRECT_URI');
-        $purpose = (string) (getenv('MYINFO_PURPOSE') ?: '');
-        $attributes = self::parseAttributes(getenv('MYINFO_ATTRIBUTES') ?: '');
+        $clientId = (string) (getenv('MYINFO_CLIENT_ID') ?: getenv('MYINFO_APP_CLIENT_ID') ?: '');
+        $clientSecret = (string) (getenv('MYINFO_CLIENT_SECRET') ?: getenv('MYINFO_APP_CLIENT_SECRET') ?: '');
+        $redirectUri = (string) (getenv('MYINFO_REDIRECT_URI') ?: getenv('MYINFO_APP_REDIRECT_URL') ?: '');
+        $purpose = (string) (getenv('MYINFO_PURPOSE') ?: 'demonstration');
+        $attributes = self::parseAttributes(getenv('MYINFO_ATTRIBUTES') ?: 'name,uinfin,dob,sex,race,nationality');
 
-        $authorizeUrl = (string) (getenv('MYINFO_BASE_URL_AUTH') ?: self::defaultAuthorizeUrl($env));
-        $tokenUrl = (string) (getenv('MYINFO_TOKEN_URL') ?: self::defaultTokenUrl($env));
-        $personUrl = (string) (getenv('MYINFO_BASE_URL_API') ?: self::defaultPersonUrl($env));
+        $authorizeUrl = (string) (
+            getenv('MYINFO_BASE_URL_AUTH')
+            ?: getenv('MYINFO_API_AUTHORISE')
+            ?: self::defaultAuthorizeUrl($env)
+        );
+        $tokenUrl = (string) (
+            getenv('MYINFO_TOKEN_URL')
+            ?: getenv('MYINFO_API_TOKEN')
+            ?: self::defaultTokenUrl($env)
+        );
+        $personUrl = (string) (
+            getenv('MYINFO_BASE_URL_API')
+            ?: getenv('MYINFO_API_PERSON')
+            ?: self::defaultPersonUrl($env)
+        );
 
         $timeoutMs = (int) (getenv('MYINFO_TIMEOUT_MS') ?: 10000);
 
@@ -101,9 +113,13 @@ class Config
             $tokenUrl,
             $personUrl,
             // New names (preferred)
-            (getenv('MYINFO_SIGNING_CERT_PATH') ?: null) ?: (getenv('MYINFO_PUBLIC_CERT_PATH') ?: null),
+            (getenv('MYINFO_SIGNING_CERT_PATH') ?: null)
+                ?: (getenv('MYINFO_PUBLIC_CERT_PATH') ?: null)
+                ?: (getenv('MYINFO_SIGNATURE_CERT_PUBLIC_CERT') ?: null),
             (getenv('MYINFO_SIGNING_CERT_B64') ?: null) ?: (getenv('MYINFO_PUBLIC_CERT_B64') ?: null),
-            (getenv('MYINFO_DECRYPTION_KEY_PATH') ?: null) ?: (getenv('MYINFO_PRIVATE_KEY_PATH') ?: null),
+            (getenv('MYINFO_DECRYPTION_KEY_PATH') ?: null)
+                ?: (getenv('MYINFO_PRIVATE_KEY_PATH') ?: null)
+                ?: (getenv('DEMO_APP_SIGNATURE_CERT_PRIVATE_KEY') ?: null),
             (getenv('MYINFO_DECRYPTION_KEY_B64') ?: null) ?: (getenv('MYINFO_PRIVATE_KEY_B64') ?: null),
             (getenv('MYINFO_DECRYPTION_KEY_PASSPHRASE') ?: null) ?: (getenv('MYINFO_PRIVATE_KEY_PASSPHRASE') ?: null),
             $timeoutMs
@@ -124,17 +140,17 @@ class Config
 
         return new self(
             (string) $env,
-            (string) ($cfg['client_id'] ?? ''),
-            (string) ($cfg['client_secret'] ?? ''),
-            (string) ($cfg['redirect_uri'] ?? ''),
-            (string) ($cfg['purpose'] ?? ''),
+            (string) ($cfg['client_id'] ?? $cfg['app_client_id'] ?? ''),
+            (string) ($cfg['client_secret'] ?? $cfg['app_client_secret'] ?? ''),
+            (string) ($cfg['redirect_uri'] ?? $cfg['app_redirect_url'] ?? ''),
+            (string) ($cfg['purpose'] ?? 'demonstration'),
             (array) $attributes,
-            (string) ($cfg['authorize_url'] ?? self::defaultAuthorizeUrl($env)),
-            (string) ($cfg['token_url'] ?? self::defaultTokenUrl($env)),
-            (string) ($cfg['person_url'] ?? self::defaultPersonUrl($env)),
-            ($cfg['signing_cert_path'] ?? null) ?: ($cfg['public_cert_path'] ?? null),
+            (string) ($cfg['authorize_url'] ?? $cfg['api_authorise_url'] ?? self::defaultAuthorizeUrl($env)),
+            (string) ($cfg['token_url'] ?? $cfg['api_token_url'] ?? self::defaultTokenUrl($env)),
+            (string) ($cfg['person_url'] ?? $cfg['api_person_url'] ?? self::defaultPersonUrl($env)),
+            ($cfg['signing_cert_path'] ?? null) ?: ($cfg['public_cert_path'] ?? null) ?: ($cfg['signature_cert_public_cert'] ?? null),
             ($cfg['signing_cert_b64'] ?? null) ?: ($cfg['public_cert_b64'] ?? null),
-            ($cfg['decryption_key_path'] ?? null) ?: ($cfg['private_key_path'] ?? null),
+            ($cfg['decryption_key_path'] ?? null) ?: ($cfg['private_key_path'] ?? null) ?: ($cfg['demo_app_signature_cert_private_key'] ?? null),
             ($cfg['decryption_key_b64'] ?? null) ?: ($cfg['private_key_b64'] ?? null),
             ($cfg['decryption_key_passphrase'] ?? null) ?: ($cfg['private_key_passphrase'] ?? null),
             (int) ($cfg['timeout_ms'] ?? 10000)
