@@ -1,4 +1,4 @@
-# MyInfo (SingPass) PHP SDK (Laravel 8 / PHP 7.4)
+# MyInfo (Singpass) PHP SDK (Laravel 8 / PHP 7.4)
 
 PHP wrapper SDK for MyInfo integrations.
 
@@ -19,22 +19,27 @@ PHP wrapper SDK for MyInfo integrations.
   - `php artisan vendor:publish --tag=myinfo-assets`
 
 ## Configure
-Add to `.env` (examples):
+Add to `.env` (canonical keys):
 
-```
+```dotenv
 MYINFO_ENV=sandbox
 MYINFO_CLIENT_ID=...
 MYINFO_CLIENT_SECRET=...
-MYINFO_REDIRECT_URI=https://your-app.example.com/auth/myinfo/callback
+MYINFO_REDIRECT_URI=https://your-app.example.com/verification/singpass/callback
 MYINFO_PURPOSE=demonstration
 MYINFO_ATTRIBUTES=name,uinfin,dob,sex,race
 
-# Keys (provide path or base64 of the PEM contents)
-# MyInfo's PUBLIC signing certificate — used to VERIFY JWS
+# Endpoints (optional, defaults by environment are provided)
+MYINFO_BASE_URL_AUTH=https://sandbox.api.myinfo.gov.sg/com/v3/authorise
+MYINFO_TOKEN_URL=https://sandbox.api.myinfo.gov.sg/com/v3/token
+MYINFO_BASE_URL_API=https://sandbox.api.myinfo.gov.sg/com/v3/person
+
+# Keys (provide path or base64 of PEM contents)
+# MyInfo public signing certificate used to verify JWS
 MYINFO_SIGNING_CERT_PATH=/path/to/myinfo_signing_public.crt
 # MYINFO_SIGNING_CERT_B64=base64-PEM
 
-# YOUR RSA PRIVATE key — used to DECRYPT JWE (register its public key with MyInfo)
+# Your RSA private key used to decrypt JWE
 MYINFO_DECRYPTION_KEY_PATH=/path/to/your_decryption_private_key.pem
 # MYINFO_DECRYPTION_KEY_B64=base64-PEM
 MYINFO_DECRYPTION_KEY_PASSPHRASE=
@@ -45,6 +50,11 @@ MYINFO_TIMEOUT_MS=10000
 Notes:
 - `.cer` files must be PEM; convert DER to PEM if needed.
 - `signing_cert_*` is from MyInfo; `decryption_key_*` is your private key.
+- Legacy aliases are still supported as fallback:
+  - `MYINFO_APP_CLIENT_ID`, `MYINFO_APP_CLIENT_SECRET`, `MYINFO_APP_REDIRECT_URL`
+  - `MYINFO_API_AUTHORISE`, `MYINFO_API_TOKEN`, `MYINFO_API_PERSON`
+  - `MYINFO_PUBLIC_CERT_PATH`, `MYINFO_PRIVATE_KEY_PATH`
+  - `MYINFO_SIGNATURE_CERT_PUBLIC_CERT`, `DEMO_APP_SIGNATURE_CERT_PRIVATE_KEY`
 
 ## Usage (Laravel)
 
@@ -77,9 +87,7 @@ class MyInfoAuthController extends Controller
     {
         $code = (string) $request->query('code', '');
         $token = MyInfo::exchangeToken($code);
-        // If your environment requires UIN/FIN in the path, supply it as third arg
         $person = MyInfo::getPerson($token->getValue());
-        // $person = MyInfo::getPerson($token->getValue(), null, $uinfin);
         return response()->json($person->toArray());
     }
 }

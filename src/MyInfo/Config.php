@@ -78,6 +78,10 @@ class Config
     public static function fromEnv(): self
     {
         $env = getenv('MYINFO_ENV') ?: 'sandbox';
+
+        // Canonical env keys are MYINFO_CLIENT_*, MYINFO_REDIRECT_URI, MYINFO_BASE_URL_*,
+        // MYINFO_SIGNING_CERT_* and MYINFO_DECRYPTION_KEY_*.
+        // Legacy keys remain as fallback for backward compatibility.
         $clientId = (string) (getenv('MYINFO_CLIENT_ID') ?: getenv('MYINFO_APP_CLIENT_ID') ?: '');
         $clientSecret = (string) (getenv('MYINFO_CLIENT_SECRET') ?: getenv('MYINFO_APP_CLIENT_SECRET') ?: '');
         $redirectUri = (string) (getenv('MYINFO_REDIRECT_URI') ?: getenv('MYINFO_APP_REDIRECT_URL') ?: '');
