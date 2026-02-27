@@ -8,12 +8,15 @@ use MyInfo\Exceptions\ConfigException;
  * Configuration for the MyInfo integration.
  *
  * Supports loading from environment variables or from a Laravel config array.
- * Validates critical properties (client credentials, endpoints, keys).
+ * Validates critical properties for either legacy MyInfo v3 flow or OIDC/FAPI flow.
  */
 class Config
 {
     /** @var string sandbox|test|prod */
     private string $environment;
+    /** @var string legacy|oidc|oidc_fapi|fapi */
+    private string $mode;
+
     private string $clientId;
     private string $clientSecret;
     private string $redirectUri;
@@ -35,6 +38,8 @@ class Config
     private ?string $decryptionKeyPassphrase;
 
     private int $timeoutMs;
+    /** @var array<string,mixed> */
+    private array $oidc;
 
     public function __construct(
         string $environment,
@@ -51,9 +56,12 @@ class Config
         ?string $decryptionKeyPath,
         ?string $decryptionKeyBase64,
         ?string $decryptionKeyPassphrase,
-        int $timeoutMs = 10000
+        int $timeoutMs = 10000,
+        string $mode = 'legacy',
+        array $oidc = []
     ) {
         $this->environment = $environment;
+        $this->mode = strtolower(trim($mode)) !== '' ? strtolower(trim($mode)) : 'legacy';
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->redirectUri = $redirectUri;
@@ -68,6 +76,7 @@ class Config
         $this->decryptionKeyBase64 = $decryptionKeyBase64;
         $this->decryptionKeyPassphrase = $decryptionKeyPassphrase;
         $this->timeoutMs = $timeoutMs;
+        $this->oidc = $oidc;
 
         $this->validate();
     }
@@ -78,6 +87,7 @@ class Config
     public static function fromEnv(): self
     {
         $env = getenv('MYINFO_ENV') ?: 'sandbox';
+        $mode = (string) (getenv('MYINFO_MODE') ?: 'legacy');
 
         // Canonical env keys are MYINFO_CLIENT_*, MYINFO_REDIRECT_URI, MYINFO_BASE_URL_*,
         // MYINFO_SIGNING_CERT_* and MYINFO_DECRYPTION_KEY_*.
@@ -105,6 +115,19 @@ class Config
         );
 
         $timeoutMs = (int) (getenv('MYINFO_TIMEOUT_MS') ?: 10000);
+        $oidc = [
+            'config_path' => getenv('MYINFO_OIDC_CONFIG_PATH') ?: null,
+            'issuer_url' => getenv('MYINFO_ISSUER_URL') ?: 'https://stg-id.singpass.gov.sg/fapi',
+            'scope' => getenv('MYINFO_SCOPES') ?: (getenv('MYINFO_SCOPE') ?: 'openid uinfin name'),
+            'use_par' => getenv('MYINFO_OIDC_USE_PAR') ?: 'true',
+            'use_dpop' => getenv('MYINFO_OIDC_USE_DPOP') ?: 'true',
+            'private_sig_jwk_json' => getenv('MYINFO_OIDC_PRIVATE_SIG_JWK_JSON') ?: null,
+            'private_sig_jwk_path' => getenv('MYINFO_OIDC_PRIVATE_SIG_JWK_PATH') ?: null,
+            'public_sig_jwk_json' => getenv('MYINFO_OIDC_PUBLIC_SIG_JWK_JSON') ?: null,
+            'public_sig_jwk_path' => getenv('MYINFO_OIDC_PUBLIC_SIG_JWK_PATH') ?: null,
+            'private_enc_jwk_json' => getenv('MYINFO_OIDC_PRIVATE_ENC_JWK_JSON') ?: null,
+            'private_enc_jwk_path' => getenv('MYINFO_OIDC_PRIVATE_ENC_JWK_PATH') ?: null,
+        ];
 
         return new self(
             $env,
@@ -126,7 +149,9 @@ class Config
                 ?: (getenv('DEMO_APP_SIGNATURE_CERT_PRIVATE_KEY') ?: null),
             (getenv('MYINFO_DECRYPTION_KEY_B64') ?: null) ?: (getenv('MYINFO_PRIVATE_KEY_B64') ?: null),
             (getenv('MYINFO_DECRYPTION_KEY_PASSPHRASE') ?: null) ?: (getenv('MYINFO_PRIVATE_KEY_PASSPHRASE') ?: null),
-            $timeoutMs
+            $timeoutMs,
+            $mode,
+            $oidc
         );
     }
 
@@ -137,10 +162,12 @@ class Config
     public static function fromArray(array $cfg): self
     {
         $env = (string) ($cfg['env'] ?? 'sandbox');
+        $mode = (string) ($cfg['mode'] ?? 'legacy');
         $attributes = $cfg['attributes'] ?? [];
         if (is_string($attributes)) {
             $attributes = self::parseAttributes($attributes);
         }
+        $oidc = isset($cfg['oidc']) && is_array($cfg['oidc']) ? $cfg['oidc'] : [];
 
         return new self(
             (string) $env,
@@ -157,7 +184,9 @@ class Config
             ($cfg['decryption_key_path'] ?? null) ?: ($cfg['private_key_path'] ?? null) ?: ($cfg['demo_app_signature_cert_private_key'] ?? null),
             ($cfg['decryption_key_b64'] ?? null) ?: ($cfg['private_key_b64'] ?? null),
             ($cfg['decryption_key_passphrase'] ?? null) ?: ($cfg['private_key_passphrase'] ?? null),
-            (int) ($cfg['timeout_ms'] ?? 10000)
+            (int) ($cfg['timeout_ms'] ?? 10000),
+            $mode,
+            $oidc
         );
     }
 
@@ -167,11 +196,26 @@ class Config
      */
     private function validate(): void
     {
-        if ($this->clientId === '' || $this->clientSecret === '') {
-            throw new ConfigException('MYINFO client_id/client_secret are required.');
+        if ($this->clientId === '') {
+            throw new ConfigException('MYINFO client_id is required.');
         }
         if ($this->redirectUri === '') {
             throw new ConfigException('MYINFO redirect_uri is required.');
+        }
+        foreach ([$this->authorizeUrl, $this->tokenUrl, $this->personUrl] as $url) {
+            if ($url !== '' && !preg_match('/^https?:\/\//i', $url)) {
+                throw new ConfigException('Invalid endpoint URL: ' . $url);
+            }
+        }
+
+        if ($this->isOidcMode()) {
+            // OIDC/FAPI flow uses private_key_jwt + JWK keys loaded separately in client runtime.
+            return;
+        }
+
+        // Legacy MyInfo v3 flow validations
+        if ($this->clientSecret === '') {
+            throw new ConfigException('MYINFO client_secret is required for legacy mode.');
         }
         if ($this->purpose === '') {
             throw new ConfigException('MYINFO purpose is required.');
@@ -179,12 +223,6 @@ class Config
         if (empty($this->attributes)) {
             throw new ConfigException('MYINFO attributes are required.');
         }
-        foreach ([$this->authorizeUrl, $this->tokenUrl, $this->personUrl] as $url) {
-            if (!preg_match('/^https?:\/\//i', $url)) {
-                throw new ConfigException('Invalid endpoint URL: ' . $url);
-            }
-        }
-        // Require at least one source for both keys
         if (!$this->signingCertPath && !$this->signingCertBase64) {
             throw new ConfigException('MyInfo signing certificate is required (path or base64).');
         }
@@ -208,9 +246,9 @@ class Config
     {
         switch (strtolower($env)) {
             case 'prod':
-                return 'https://login.singpass.gov.sg/singpass/myinfo/authorize';
+                return 'https://api.myinfo.gov.sg/com/v3/authorise';
             case 'test':
-                return 'https://stg-id.singpass.gov.sg/singpass/myinfo/authorize';
+                return 'https://test.api.myinfo.gov.sg/com/v3/authorise';
             case 'sandbox':
             default:
                 return 'https://sandbox.api.myinfo.gov.sg/com/v3/authorise';
@@ -221,9 +259,9 @@ class Config
     {
         switch (strtolower($env)) {
             case 'prod':
-                return 'https://login.singpass.gov.sg/singpass/myinfo/token';
+                return 'https://api.myinfo.gov.sg/com/v3/token';
             case 'test':
-                return 'https://stg-id.singpass.gov.sg/singpass/myinfo/token';
+                return 'https://test.api.myinfo.gov.sg/com/v3/token';
             case 'sandbox':
             default:
                 return 'https://sandbox.api.myinfo.gov.sg/com/v3/token';
@@ -243,8 +281,14 @@ class Config
         }
     }
 
+    public function isOidcMode(): bool
+    {
+        return in_array($this->mode, ['oidc', 'oidc_fapi', 'fapi'], true);
+    }
+
     // Getters (read-only config access)
     public function getEnvironment(): string { return $this->environment; }
+    public function getMode(): string { return $this->mode; }
     public function getClientId(): string { return $this->clientId; }
     public function getClientSecret(): string { return $this->clientSecret; }
     public function getRedirectUri(): string { return $this->redirectUri; }
@@ -260,4 +304,6 @@ class Config
     public function getDecryptionKeyBase64(): ?string { return $this->decryptionKeyBase64; }
     public function getDecryptionKeyPassphrase(): ?string { return $this->decryptionKeyPassphrase; }
     public function getTimeoutMs(): int { return $this->timeoutMs; }
+    /** @return array<string,mixed> */
+    public function getOidc(): array { return $this->oidc; }
 }

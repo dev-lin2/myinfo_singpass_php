@@ -3,6 +3,8 @@
 return [
     // Environment: sandbox | test | prod
     'env' => env('MYINFO_ENV', 'sandbox'),
+    // Flow mode: legacy | oidc | oidc_fapi | fapi
+    'mode' => env('MYINFO_MODE', 'legacy'),
 
     // OAuth client configuration (canonical keys first, legacy keys as fallback)
     'client_id' => env('MYINFO_CLIENT_ID', env('MYINFO_APP_CLIENT_ID', '')),
@@ -34,4 +36,24 @@ return [
 
     // HTTP timeout in milliseconds
     'timeout_ms' => (int) env('MYINFO_TIMEOUT_MS', 10000),
+
+    // OIDC/FAPI mode settings
+    'oidc' => [
+        // Can point to the Singpass demo config.json for quick setup.
+        'config_path' => env('MYINFO_OIDC_CONFIG_PATH'),
+
+        'issuer_url' => env('MYINFO_ISSUER_URL', 'https://stg-id.singpass.gov.sg/fapi'),
+        'scope' => env('MYINFO_SCOPES', env('MYINFO_SCOPE', 'openid uinfin name')),
+
+        'use_par' => env('MYINFO_OIDC_USE_PAR', true),
+        'use_dpop' => env('MYINFO_OIDC_USE_DPOP', true),
+
+        // Optional direct key inputs (JSON string or JSON file path)
+        'private_sig_jwk_json' => env('MYINFO_OIDC_PRIVATE_SIG_JWK_JSON'),
+        'private_sig_jwk_path' => env('MYINFO_OIDC_PRIVATE_SIG_JWK_PATH'),
+        'public_sig_jwk_json' => env('MYINFO_OIDC_PUBLIC_SIG_JWK_JSON'),
+        'public_sig_jwk_path' => env('MYINFO_OIDC_PUBLIC_SIG_JWK_PATH'),
+        'private_enc_jwk_json' => env('MYINFO_OIDC_PRIVATE_ENC_JWK_JSON'),
+        'private_enc_jwk_path' => env('MYINFO_OIDC_PRIVATE_ENC_JWK_PATH'),
+    ],
 ];
