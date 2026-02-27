@@ -8,7 +8,7 @@ Simple Laravel package for MyInfo login + person data fetch.
 MYINFO_ENV=sandbox
 MYINFO_CLIENT_ID=...
 MYINFO_CLIENT_SECRET=...
-MYINFO_REDIRECT_URI=http://localhost:8080/verification/singpass/callback
+MYINFO_REDIRECT_URI=http://localhost:8080/myinfo/callback
 
 # MyInfo signing cert (public cert)
 MYINFO_SIGNING_CERT_PATH=./ssl/staging_myinfo_public_cert.cer
