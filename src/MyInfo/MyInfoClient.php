@@ -496,6 +496,16 @@ class MyInfoClient
             return $this->oidcJwks;
         }
 
+        $local = $this->oidcSettings()['verification_jwks'] ?? null;
+        if (is_array($local) && !empty($local)) {
+            $this->oidcJwks = array_values(array_filter($local, static function ($k) {
+                return is_array($k) && !empty($k);
+            }));
+            if (!empty($this->oidcJwks)) {
+                return $this->oidcJwks;
+            }
+        }
+
         $uri = (string) $this->oidcMetadata()['jwks_uri'];
         $res = $this->http->get($uri, [], ['Accept' => 'application/json']);
         $body = json_decode((string) $res->getBody(), true);
@@ -562,6 +572,10 @@ class MyInfoClient
                 $cfg['private_enc_jwk_path'] ?? null,
                 $keys['PRIVATE_ENC_KEY'] ?? null
             ),
+            'verification_jwks' => $this->readJwkSet(
+                $cfg['verification_jwks_json'] ?? null,
+                $cfg['verification_jwks_path'] ?? null
+            ),
         ];
 
         if ($this->oidc['client_id'] === '') {
@@ -615,6 +629,60 @@ class MyInfoClient
         }
 
         return is_array($fallback) ? $fallback : null;
+    }
+
+    /**
+     * Reads verification keys from JSON string or file.
+     * Accepts JWKS ({ "keys": [...] }), list of JWK objects, or single JWK object.
+     *
+     * @param mixed $json
+     * @param mixed $path
+     * @return array<int,array<string,mixed>>|null
+     */
+    private function readJwkSet($json, $path): ?array
+    {
+        $decoded = null;
+
+        if (is_string($json) && trim($json) !== '') {
+            $decoded = json_decode(trim($json), true);
+            if (!is_array($decoded)) {
+                throw new OAuthException('Invalid JWKS JSON in MYINFO_OIDC_VERIFICATION_JWKS_JSON.');
+            }
+        }
+
+        if ($decoded === null && is_string($path) && trim($path) !== '') {
+            $resolved = $this->resolvePath(trim($path));
+            if (!is_file($resolved)) {
+                throw new OAuthException('Verification JWKS file not found: ' . $resolved);
+            }
+            $decoded = json_decode((string) file_get_contents($resolved), true);
+            if (!is_array($decoded)) {
+                throw new OAuthException('Invalid JWKS JSON in file: ' . $resolved);
+            }
+        }
+
+        if ($decoded === null) {
+            return null;
+        }
+
+        $keys = [];
+        if (isset($decoded['keys']) && is_array($decoded['keys'])) {
+            $keys = $decoded['keys'];
+        } elseif ($this->isSequentialArray($decoded)) {
+            $keys = $decoded;
+        } else {
+            $keys = [$decoded];
+        }
+
+        $keys = array_values(array_filter($keys, static function ($k) {
+            return is_array($k) && !empty($k);
+        }));
+
+        if (empty($keys)) {
+            throw new OAuthException('Verification JWKS is empty.');
+        }
+
+        return $keys;
     }
 
     /**
@@ -740,6 +808,21 @@ class MyInfoClient
             }
         }
         return false;
+    }
+
+    /**
+     * @param array<mixed> $value
+     */
+    private function isSequentialArray(array $value): bool
+    {
+        $i = 0;
+        foreach (array_keys($value) as $key) {
+            if ($key !== $i) {
+                return false;
+            }
+            $i++;
+        }
+        return true;
     }
 
     private function resolveClientAssertionAudience(string $endpoint): string

@@ -63,6 +63,28 @@ MYINFO_OIDC_CLIENT_ASSERTION_AUDIENCE=
 
 `MYINFO_OIDC_CLIENT_ASSERTION_AUDIENCE` is optional. If empty, the package uses OIDC discovery issuer.
 
+## Optional Signature Verification Key Override
+
+By default, the package verifies ID token and UserInfo signatures using the issuer discovery `jwks_uri`.
+
+If you want to pin verification keys locally, set either:
+
+```dotenv
+MYINFO_OIDC_VERIFICATION_JWKS_PATH=./myinfo/myinfo_pub.jwk.json
+```
+
+or
+
+```dotenv
+MYINFO_OIDC_VERIFICATION_JWKS_JSON={...}
+```
+
+Accepted formats:
+
+- JWKS object: `{ "keys": [ ... ] }`
+- single JWK object
+- array of JWK objects
+
 ## Minimal Usage
 
 ```php

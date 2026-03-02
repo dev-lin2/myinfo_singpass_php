@@ -33,5 +33,11 @@ return [
         'public_sig_jwk_path' => env('MYINFO_OIDC_PUBLIC_SIG_JWK_PATH'),
         'private_enc_jwk_json' => env('MYINFO_OIDC_PRIVATE_ENC_JWK_JSON'),
         'private_enc_jwk_path' => env('MYINFO_OIDC_PRIVATE_ENC_JWK_PATH'),
+
+        // Optional override for Singpass signing keys used to verify id_token/userinfo signatures.
+        // Accepts either JWKS JSON ({ "keys": [...] }) or a single JWK object.
+        // If set, runtime uses this instead of discovery jwks_uri.
+        'verification_jwks_json' => env('MYINFO_OIDC_VERIFICATION_JWKS_JSON'),
+        'verification_jwks_path' => env('MYINFO_OIDC_VERIFICATION_JWKS_PATH'),
     ],
 ];

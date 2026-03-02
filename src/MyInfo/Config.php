@@ -50,6 +50,8 @@ class Config
                 'public_sig_jwk_path' => getenv('MYINFO_OIDC_PUBLIC_SIG_JWK_PATH') ?: null,
                 'private_enc_jwk_json' => getenv('MYINFO_OIDC_PRIVATE_ENC_JWK_JSON') ?: null,
                 'private_enc_jwk_path' => getenv('MYINFO_OIDC_PRIVATE_ENC_JWK_PATH') ?: null,
+                'verification_jwks_json' => getenv('MYINFO_OIDC_VERIFICATION_JWKS_JSON') ?: null,
+                'verification_jwks_path' => getenv('MYINFO_OIDC_VERIFICATION_JWKS_PATH') ?: null,
             ]
         );
     }
