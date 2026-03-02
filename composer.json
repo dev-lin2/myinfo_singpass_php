@@ -1,13 +1,12 @@
 {
   "name": "devlin/myinfo-singpass",
-  "description": "PHP wrapper SDK for MyInfo integrations.",
+  "description": "Laravel package for Singpass/Myinfo v5 OIDC FAPI 2.0 integrations.",
   "type": "library",
   "license": "proprietary",
   "require": {
     "php": ">=7.4",
     "guzzlehttp/guzzle": "^7.0",
     "web-token/jwt-framework": "^2.2",
-    "psr/log": "^1.1",
     "nesbot/carbon": "^2.0"
   },
   "require-dev": {

@@ -1,108 +1,137 @@
-# MyInfo Singpass Package
+# MyInfo Singpass Package (FAPI 2.0 Only)
 
-Simple Laravel package for Singpass/MyInfo integration.
+Laravel package for Singpass / Myinfo v5 integration using OIDC + FAPI 2.0 profile.
 
-## Modes
+## Reference
 
-- `legacy`: old MyInfo `/com/v3/*` flow
-- `oidc_fapi` (or `oidc`/`fapi`): OIDC/FAPI flow (recommended from 2026 onward)
+- Official integration guide:
+  https://docs.developer.singpass.gov.sg/docs/technical-specifications/integration-guide
 
-Set mode:
+## Scope
+
+This package now supports only the modern FAPI 2.0 flow:
+
+- Pushed Authorization Request (PAR)
+- PKCE (`S256`)
+- DPoP
+- `private_key_jwt` client authentication
+- Encrypted + signed `id_token` validation
+- `/userinfo` retrieval with `Authorization: DPoP <access_token>`
+
+Legacy MyInfo `/com/v3/*` flow is removed.
+
+## Required Environment Variables
 
 ```dotenv
-MYINFO_MODE=oidc_fapi
-```
-
-## OIDC/FAPI Quick Setup (Recommended)
-
-### Required `.env`
-
-```dotenv
-MYINFO_MODE=oidc_fapi
 MYINFO_CLIENT_ID=...
 MYINFO_REDIRECT_URI=http://localhost:8080/myinfo/callback
+```
+
+## Recommended Environment Variables
+
+```dotenv
 MYINFO_ISSUER_URL=https://stg-id.singpass.gov.sg/fapi
 MYINFO_SCOPES=openid uinfin name
+MYINFO_TIMEOUT_MS=10000
+```
 
-# easiest: point to Singpass demo config.json (contains KEYS block)
+## Key Configuration (choose one)
+
+### Option A: Singpass config JSON (recommended)
+
+```dotenv
 MYINFO_OIDC_CONFIG_PATH=./config/singpass-config.json
 ```
 
-### Optional `.env`
+Expected JSON fields are `CLIENT_ID`, `REDIRECT_URI`, `ISSUER_URL`, and `KEYS`.
+
+### Option B: explicit JWK env values
 
 ```dotenv
-# defaults are true
-MYINFO_OIDC_USE_PAR=true
-MYINFO_OIDC_USE_DPOP=true
-
-# use these only if not using MYINFO_OIDC_CONFIG_PATH
-MYINFO_OIDC_PRIVATE_SIG_JWK_JSON=
-MYINFO_OIDC_PUBLIC_SIG_JWK_JSON=
-MYINFO_OIDC_PRIVATE_ENC_JWK_JSON=
-
-# or JWK file paths
-MYINFO_OIDC_PRIVATE_SIG_JWK_PATH=
-MYINFO_OIDC_PUBLIC_SIG_JWK_PATH=
-MYINFO_OIDC_PRIVATE_ENC_JWK_PATH=
+MYINFO_OIDC_PRIVATE_SIG_JWK_PATH=./myinfo/private_sig.jwk.json
+MYINFO_OIDC_PUBLIC_SIG_JWK_PATH=./myinfo/public_sig.jwk.json
+MYINFO_OIDC_PRIVATE_ENC_JWK_PATH=./myinfo/private_enc.jwk.json
 ```
 
-Notes:
-
-- OIDC/FAPI uses `private_key_jwt` + PKCE + DPoP.
-- `MYINFO_CLIENT_SECRET` is not required in OIDC/FAPI mode.
-
-## Legacy Mode Quick Setup
-
-Use this only for older integrations.
+## Optional Reliability Settings
 
 ```dotenv
-MYINFO_MODE=legacy
-MYINFO_ENV=sandbox
-MYINFO_CLIENT_ID=...
-MYINFO_CLIENT_SECRET=...
-MYINFO_REDIRECT_URI=http://localhost:8080/myinfo/callback
-MYINFO_SIGNING_CERT_PATH=./ssl/staging_myinfo_public_cert.cer
-MYINFO_DECRYPTION_KEY_PATH=./ssl/your_app_private_key.pem
+MYINFO_OIDC_RETRY_ATTEMPTS=3
+MYINFO_OIDC_RETRY_BACKOFF_MS=250
+MYINFO_OIDC_CLIENT_ASSERTION_AUDIENCE=
 ```
 
-Optional legacy endpoint overrides:
-
-```dotenv
-MYINFO_BASE_URL_AUTH=https://sandbox.api.myinfo.gov.sg/com/v3/authorise
-MYINFO_TOKEN_URL=https://sandbox.api.myinfo.gov.sg/com/v3/token
-MYINFO_BASE_URL_API=https://sandbox.api.myinfo.gov.sg/com/v3/person
-```
+`MYINFO_OIDC_CLIENT_ASSERTION_AUDIENCE` is optional. If empty, the package uses OIDC discovery issuer.
 
 ## Minimal Usage
 
 ```php
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use MyInfo\Laravel\Facades\MyInfo;
 
-// redirect
+// Redirect step
 $state = Str::random(32);
 $nonce = Str::random(32);
 $codeVerifier = rtrim(strtr(base64_encode(random_bytes(64)), '+/', '-_'), '=');
-session(['myinfo_state_'.$state => $codeVerifier]);
+
+session([
+    'myinfo_state_'.$state => [
+        'code_verifier' => $codeVerifier,
+        'nonce' => $nonce,
+    ],
+]);
 
 $url = MyInfo::buildAuthorizeUrl([
     'state' => $state,
     'nonce' => $nonce,
-    'code_verifier' => $codeVerifier, // required for OIDC/FAPI
+    'code_verifier' => $codeVerifier,
 ]);
-return redirect()->away($url);
 
-// callback
+return redirect()->away($url);
+```
+
+```php
+use MyInfo\Laravel\Facades\MyInfo;
+
+// Callback step
 $code = (string) request('code', '');
 $state = (string) request('state', '');
-$codeVerifier = (string) session('myinfo_state_'.$state, '');
+$ctx = (array) session('myinfo_state_'.$state, []);
 session()->forget('myinfo_state_'.$state);
 
-$token = MyInfo::exchangeToken($code, null, ['code_verifier' => $codeVerifier]);
+$token = MyInfo::exchangeToken($code, null, [
+    'code_verifier' => (string) ($ctx['code_verifier'] ?? ''),
+    'nonce' => (string) ($ctx['nonce'] ?? ''),
+]);
+
+// id_token claims are already verified (iss, aud, exp, nonce)
+$idTokenClaims = $token->getIdTokenClaims();
+
+// Fetch Myinfo user data from /userinfo
 $person = MyInfo::getPerson($token->getValue())->toArray();
 ```
 
-## Legacy Env Aliases
+## Runtime Behavior
 
-Older env keys (`MYINFO_APP_*`, `MYINFO_API_*`, etc.) are still accepted as fallback.
+- PAR is always used.
+- DPoP is always used for PAR, token, and userinfo calls.
+- `token_type` must be `DPoP`.
+- `openid` must be present in requested scopes.
+- `id_token` claims are validated: `iss`, `aud`, `exp`, `nonce`.
+
+## Removed Legacy Configuration
+
+These are no longer used by this package:
+
+- `MYINFO_MODE`
+- `MYINFO_ENV`
+- `MYINFO_CLIENT_SECRET`
+- `MYINFO_BASE_URL_AUTH`
+- `MYINFO_TOKEN_URL`
+- `MYINFO_BASE_URL_API`
+- `MYINFO_API_AUTHORISE`
+- `MYINFO_API_TOKEN`
+- `MYINFO_API_PERSON`
+- `MYINFO_SIGNING_CERT_*`
+- `MYINFO_DECRYPTION_KEY_*`
+- all `MYINFO_APP_*` fallback keys

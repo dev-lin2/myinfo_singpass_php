@@ -30,12 +30,23 @@ class Person
 
     public function getUinFin(): ?string
     {
-        return $this->data['uinfin'] ?? null;
+        $direct = $this->data['uinfin'] ?? null;
+        if (is_string($direct) && $direct !== '') {
+            return $direct;
+        }
+
+        $nested = $this->data['person_info']['uinfin']['value'] ?? null;
+        return is_string($nested) && $nested !== '' ? $nested : null;
     }
 
     public function getName(): ?string
     {
-        return $this->data['name']['value'] ?? null;
+        $direct = $this->data['name']['value'] ?? null;
+        if (is_string($direct) && $direct !== '') {
+            return $direct;
+        }
+
+        $nested = $this->data['person_info']['name']['value'] ?? null;
+        return is_string($nested) && $nested !== '' ? $nested : null;
     }
 }
-
