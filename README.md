@@ -161,3 +161,8 @@ $person = MyInfo::getPerson($token->getValue())->toArray();
 - `token_type` must be `DPoP`.
 - `openid` must be present in requested scopes.
 - `id_token` claims are validated: `iss`, `aud`, `exp`, `nonce`.
+
+
+## Demo
+
+Look for a quick demo here. [https://github.com/dev-lin2/myinfo_singpass_php_demo](https://github.com/dev-lin2/myinfo_singpass_php_demo)
