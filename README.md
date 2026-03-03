@@ -2,6 +2,10 @@
 
 PHP package for Singpass / Myinfo v5 integration using OIDC + FAPI 2.0 profile.
 
+## Installation
+
+```composer require devlin/myinfo-singpass-laravel```
+
 ## Reference
 
 - Official integration guide:
