@@ -1,6 +1,6 @@
 {
-  "name": "devlin/myinfo-singpass",
-  "description": "Laravel package for Singpass/Myinfo v5 OIDC FAPI 2.0 integrations.",
+  "name": "devlin/myinfo-singpass-laravel",
+  "description": "PHP package for Singpass/Myinfo v5 OIDC FAPI 2.0 integrations.",
   "type": "library",
   "license": "proprietary",
   "require": {
