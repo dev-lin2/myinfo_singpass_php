@@ -11,3 +11,6 @@ composer.phar
 .phpunit.result.cache
 coverage/
 
+.claude
+
+

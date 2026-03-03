@@ -1,6 +1,6 @@
 # MyInfo Singpass Package (FAPI 2.0 Only)
 
-Laravel package for Singpass / Myinfo v5 integration using OIDC + FAPI 2.0 profile.
+PHP package for Singpass / Myinfo v5 integration using OIDC + FAPI 2.0 profile.
 
 ## Reference
 
@@ -34,6 +34,23 @@ MYINFO_ISSUER_URL=https://stg-id.singpass.gov.sg/fapi
 MYINFO_SCOPES=openid uinfin name
 MYINFO_TIMEOUT_MS=10000
 ```
+
+## Generating JWK Key Files
+
+This package requires JWK key files for signing and encryption. If you don't have these yet, you can generate them using [`jwk-cli-tool`](https://www.npmjs.com/package/jwk-cli-tool) — an interactive CLI for generating PEM and JWK files.
+
+```bash
+npx jwk-cli-tool
+```
+
+The tool will guide you through:
+
+1. **Generate PEM Key Pairs** — choose your algorithm (`ES256`, `ES384`, `ES512`, `RS256`, `RS384`, `RS512`) to produce `.pem` files
+2. **Generate JWK JSON Files** — convert PEM keys to JWK format, set the key use (`sig` or `enc`), and assign a key ID
+
+Run it twice — once for your **signing key** (`sig`) and once for your **encryption key** (`enc`) — then reference the output files in the env vars below.
+
+> Requires Node.js 18+.
 
 ## Key Configuration (choose one)
 
@@ -140,20 +157,3 @@ $person = MyInfo::getPerson($token->getValue())->toArray();
 - `token_type` must be `DPoP`.
 - `openid` must be present in requested scopes.
 - `id_token` claims are validated: `iss`, `aud`, `exp`, `nonce`.
-
-## Removed Legacy Configuration
-
-These are no longer used by this package:
-
-- `MYINFO_MODE`
-- `MYINFO_ENV`
-- `MYINFO_CLIENT_SECRET`
-- `MYINFO_BASE_URL_AUTH`
-- `MYINFO_TOKEN_URL`
-- `MYINFO_BASE_URL_API`
-- `MYINFO_API_AUTHORISE`
-- `MYINFO_API_TOKEN`
-- `MYINFO_API_PERSON`
-- `MYINFO_SIGNING_CERT_*`
-- `MYINFO_DECRYPTION_KEY_*`
-- all `MYINFO_APP_*` fallback keys
