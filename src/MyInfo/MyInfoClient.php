@@ -11,7 +11,6 @@ use Jose\Component\Encryption\Algorithm\ContentEncryption\A256GCM;
 use Jose\Component\Encryption\Algorithm\KeyEncryption\ECDHESA128KW;
 use Jose\Component\Encryption\Algorithm\KeyEncryption\ECDHESA192KW;
 use Jose\Component\Encryption\Algorithm\KeyEncryption\ECDHESA256KW;
-use Jose\Component\Encryption\Compression\CompressionMethodManager;
 use Jose\Component\Encryption\JWEDecrypter;
 use Jose\Component\Encryption\JWELoader;
 use Jose\Component\Encryption\Serializer\CompactSerializer as JweCompactSerializer;
@@ -414,9 +413,14 @@ class MyInfoClient
         $enc = $this->needJwk($this->oidcSettings()['private_enc_jwk'] ?? null, 'OIDC private encryption key');
 
         $decrypter = new JWEDecrypter(
-            new AlgorithmManager([new ECDHESA128KW(), new ECDHESA192KW(), new ECDHESA256KW()]),
-            new AlgorithmManager([new A256GCM(), new A256CBCHS512()]),
-            new CompressionMethodManager([])
+            new AlgorithmManager([
+                new ECDHESA128KW(),
+                new ECDHESA192KW(),
+                new ECDHESA256KW(),
+                new A256GCM(),
+                new A256CBCHS512(),
+            ]),
+            null
         );
 
         $loader = new JWELoader(new JWESerializerManager([new JweCompactSerializer()]), $decrypter, null);
